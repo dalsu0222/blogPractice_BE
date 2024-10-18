@@ -12,6 +12,7 @@ const mongoose = require("mongoose");
 mongoose.connect(process.env.MONGO_URL);
 const User = require("./modules/User");
 const Post = require("./modules/Post");
+const Comment = require("./modules/Comment");
 
 const bcrypt = require("bcryptjs");
 const saltRounds = 10;
@@ -152,10 +153,29 @@ app.post("/postWrite", upload.single("files"), async (req, res) => {
   });
 });
 
-// 글 목록 가져오기
+// 글 목록 가져오기에서 댓글 수도 같이 가져오기
 app.get("/postList", async (req, res) => {
-  const postList = await Post.find().sort({ createdAt: -1 }); // 최신순으로 정렬, limit 설정도 가능
-  res.json(postList);
+  try {
+    const posts = await Post.find().sort({ createdAt: -1 }).limit(20);
+
+    const postsWithDetails = await Promise.all(
+      posts.map(async (post) => {
+        const commentCount = await Comment.countDocuments({
+          post: post._id,
+        });
+        return {
+          ...post.toObject(),
+          commentCount,
+          likeCount: post?.likes ? post?.likes.length : 0,
+        };
+      })
+    );
+
+    res.json(postsWithDetails);
+  } catch (error) {
+    console.error("Error fetching posts:", error);
+    res.status(500).json({ message: "서버 에러" });
+  }
 });
 
 // 글 상세보기
@@ -249,6 +269,138 @@ app.put(
     }
   }
 );
+
+// 새 댓글 작성
+app.post("/comments", async (req, res) => {
+  const { postId, content, author } = req.body;
+
+  try {
+    const comment = await Comment.create({
+      content,
+      author,
+      post: postId,
+    });
+    res.json(comment);
+  } catch (error) {
+    console.error("Error creating comment:", error);
+    res.status(500).json({ message: "서버 에러" });
+  }
+});
+
+// 댓글 목록 가져오기
+app.get("/comments/:postId", async (req, res) => {
+  try {
+    const comments = await Comment.find({ post: req.params.postId }).sort({
+      createdAt: -1,
+    });
+    res.json(comments);
+  } catch (error) {
+    console.error("Error fetching comments:", error);
+    res.status(500).json({ message: "서버 에러" });
+  }
+});
+
+// 댓글 수정
+app.put("/comments/:commentId", async (req, res) => {
+  const { commentId } = req.params;
+  const { content } = req.body;
+
+  try {
+    const comment = await Comment.findByIdAndUpdate(
+      commentId,
+      { content, updatedAt: new Date() },
+      { new: true }
+    );
+    if (!comment) {
+      return res.status(404).json({ message: "댓글을 찾을 수 없습니다." });
+    }
+    res.json(comment);
+  } catch (error) {
+    console.error("Error updating comment:", error);
+    res.status(500).json({ message: "서버 에러" });
+  }
+});
+
+// 댓글 삭제
+app.delete("/comments/:commentId", async (req, res) => {
+  const { commentId } = req.params;
+
+  try {
+    const comment = await Comment.findByIdAndDelete(commentId);
+    if (!comment) {
+      return res.status(404).json({ message: "댓글을 찾을 수 없습니다." });
+    }
+    res.json({ message: "댓글이 삭제되었습니다." });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "서버 에러" });
+  }
+});
+
+// 댓글 수 가져오기 app.get("/postList") 에서 수정
+// 좋아요 토글 라우트
+app.post("/like/:postId", async (req, res) => {
+  const { postId } = req.params;
+  const { token } = req.cookies;
+
+  if (!token) {
+    return res.status(401).json({ message: "인증이 필요합니다." });
+  }
+
+  try {
+    const userInfo = jwt.verify(token, secret);
+    const post = await Post.findById(postId);
+
+    if (!post) {
+      return res.status(404).json({ message: "게시물을 찾을 수 없습니다." });
+    }
+
+    const userIdStr = userInfo.id.toString();
+    const likeIndex = post.likes.indexOf(userIdStr);
+
+    if (likeIndex > -1) {
+      // 이미 좋아요를 눌렀다면 제거
+      post.likes.splice(likeIndex, 1);
+    } else {
+      // 좋아요를 누르지 않았다면 추가
+      post.likes.push(userIdStr);
+    }
+
+    await post.save();
+    res.json(post);
+  } catch (error) {
+    console.error("토글 기능 오류:", error);
+    res.status(500).json({ message: "서버 에러" });
+  }
+});
+
+//사용자가 등록한 게시물 목록 가져오기
+app.get("/user-posts/:username", async (req, res) => {
+  const { username } = req.params;
+  try {
+    const posts = await Post.find({ author: username })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const postsWithDetails = await Promise.all(
+      posts.map(async (post) => {
+        const commentCount = await Comment.countDocuments({
+          post: post._id,
+        });
+        return {
+          ...post,
+          commentCount,
+          likeCount: post.likes.length,
+        };
+      })
+    );
+
+    res.json(postsWithDetails);
+  } catch (error) {
+    console.error("Error fetching user posts:", error);
+    res.status(500).json({ message: "서버 에러" });
+  }
+});
 
 app.listen(port, () => {
   console.log(`서버 돌아가는 중...`);

@@ -12,7 +12,7 @@ const PostSchema = new Schema({
   cover: String,
   author: String,
 
-  like: [{ type: Schema.Types.ObjectId, ref: "User" }], // 좋아요를 누른 사람들의 ObjectId를 저장
+  likes: [{ type: Schema.Types.ObjectId, ref: "User" }], // 좋아요를 누른 사람들의 ObjectId를 저장
 
   createdAt: { type: Date, default: Date.now }, // createdAt은 Date이고, 기본값은 현재 시간이다.
   updatedAt: { type: Date, default: Date.now }, // updatedAt은 Date이고, 기본값은 현재 시간이다.

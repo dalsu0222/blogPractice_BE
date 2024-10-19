@@ -23,7 +23,11 @@ mongoose
 // 기본 미들웨어 설정
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN,
+    origin: [
+      process.env.CORS_ORIGIN,
+      "http://3.38.183.123:8000",
+      "http://ec2-3-38-183-123.ap-northeast-2.compute.amazonaws.com",
+    ],
     credentials: true,
   })
 );

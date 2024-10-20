@@ -43,6 +43,11 @@ const authController = {
             path: "/",
             maxAge: 24 * 60 * 60 * 1000, // 24시간
           };
+
+          console.log("Environment:", process.env.NODE_ENV);
+          console.log("Cookie options:", cookieOptions);
+          console.log("Request origin:", req.headers.origin);
+
           res.cookie("token", token, cookieOptions).json({
             id: userDoc._id,
             username,
@@ -69,12 +74,12 @@ const authController = {
     // const { token } = req.cookies;
 
     const cookieToken = req.cookies.token;
-    const headerToken = req.headers.authorization?.split(" ")[1];
-    const token = cookieToken || headerToken;
+    const authHeader = req.headers.authorization;
+    const token = cookieToken || (authHeader && authHeader.split(" ")[1]);
 
-    console.log("Profile request - Cookies:", req.cookies);
-    console.log("Profile request - Headers:", req.headers);
-    console.log("Token being verified:", token);
+    console.log("Auth header:", req.headers.authorization);
+    console.log("Cookies received:", req.cookies);
+    console.log("Token found:", token);
 
     if (!token) {
       return res.status(401).json("로그인이 필요합니다");
@@ -85,8 +90,8 @@ const authController = {
         res.json(info);
       });
     } catch (err) {
-      console.error("Profile error:", err);
-      return res.status(401).json("로그인이 필요합니다");
+      console.error("Token verification error:", err);
+      return res.status(401).json("유효하지 않은 토큰입니다");
     }
   },
 

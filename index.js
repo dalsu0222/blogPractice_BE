@@ -45,15 +45,16 @@ const corsOptions = {
       "http://127.0.0.1:5173",
     ];
 
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.log("Origin not allowed:", origin);
       callback(new Error("Not allowed by CORS"));
     }
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
   exposedHeaders: ["set-cookie"],
 };
 
@@ -61,14 +62,24 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
-// 추가 헤더 설정
+// 추가 보안 헤더
 app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && corsOptions.origin(origin, () => {})) {
+    res.header("Access-Control-Allow-Origin", origin);
+  }
+
   res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE");
   res.header(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization, Cookie"
   );
-  res.header("Access-Control-Expose-Headers", "Set-Cookie");
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).send();
+  }
+
   next();
 });
 

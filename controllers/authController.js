@@ -24,35 +24,40 @@ const authController = {
 
   async login(req, res) {
     const { username, password } = req.body;
-    const userDoc = await User.findOne({ username });
+    try {
+      const userDoc = await User.findOne({ username });
 
-    if (!userDoc) {
-      return res.status(404).json({ message: "존재하지 않는 사용자입니다" });
-    }
+      if (!userDoc) {
+        return res.status(404).json({ message: "존재하지 않는 사용자입니다" });
+      }
 
-    const passOk = bcrypt.compareSync(password, userDoc.password);
-    if (passOk) {
-      jwt.sign({ username, id: userDoc._id }, secret, {}, (err, token) => {
-        if (err) throw err;
+      const passOk = bcrypt.compareSync(password, userDoc.password);
+      if (passOk) {
+        jwt.sign({ username, id: userDoc._id }, secret, {}, (err, token) => {
+          if (err) throw err;
 
-        const cookieOptions = {
-          httpOnly: true,
-          secure: true,
-          sameSite: "none",
-          path: "/",
-          maxAge: 24 * 60 * 60 * 1000, // 24시간
-        };
-        res.cookie("token", token, cookieOptions).json({
-          id: userDoc._id,
-          username,
+          const cookieOptions = {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production", // production에서만 true
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+            path: "/",
+            maxAge: 24 * 60 * 60 * 1000, // 24시간
+          };
+          res.cookie("token", token, cookieOptions).json({
+            id: userDoc._id,
+            username,
+          });
+
+          // 개발 환경에서의 디버깅을 위한 로그
+          console.log("Setting cookie with options:", cookieOptions);
+          console.log("Token being set:", token);
         });
-
-        // 개발 환경에서의 디버깅을 위한 로그
-        console.log("Setting cookie with options:", cookieOptions);
-        console.log("Token being set:", token);
-      });
-    } else {
-      res.status(400).json({ message: "비밀번호가 틀렸습니다" });
+      } else {
+        res.status(400).json({ message: "비밀번호가 틀렸습니다" });
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      res.status(500).json({ message: "서버 오류가 발생했습니다" });
     }
   },
 
@@ -81,8 +86,8 @@ const authController = {
     res
       .cookie("token", "", {
         httpOnly: true,
-        secure: true,
-        sameSite: "none",
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         path: "/",
         expires: new Date(0),
       })

@@ -51,7 +51,6 @@ const authController = {
           res.cookie("token", token, cookieOptions).json({
             id: userDoc._id,
             username,
-            token, // 토큰도 함께 반환
           });
 
           // 개발 환경에서의 디버깅을 위한 로그
@@ -71,18 +70,14 @@ const authController = {
   },
 
   async profile(req, res) {
-    // const { token } = req.cookies;
+    const { token } = req.cookies;
 
-    const cookieToken = req.cookies.token;
-    const authHeader = req.headers.authorization;
-    const token = cookieToken || (authHeader && authHeader.split(" ")[1]);
-
-    console.log("Auth header:", req.headers.authorization);
-    console.log("Cookies received:", req.cookies);
-    console.log("Token found:", token);
+    // 디버깅을 위한 로그
+    console.log("Cookies in profile:", req.cookies);
+    console.log("Headers in profile:", req.headers);
 
     if (!token) {
-      return res.status(401).json("로그인이 필요합니다");
+      return res.status(401).json("로그인이 필요합니다. 토큰이 없습니다.");
     }
     try {
       jwt.verify(token, secret, {}, (err, info) => {

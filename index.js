@@ -18,7 +18,20 @@ const port = process.env.PORT || 8000;
 mongoose
   .connect(process.env.MONGO_URL)
   .then(() => console.log("MongoDB 연결 성공"))
-  .catch((err) => console.error("MongoDB 연결 실패:", err));
+  .catch((err) => {
+    console.error("MongoDB 연결 실패:", err);
+    process.exit(1); // 연결 실패시 프로세스 종료
+  });
+
+// MongoDB 연결 에러 핸들링
+mongoose.connection.on("error", (err) => {
+  console.error("MongoDB 연결 에러:", err);
+});
+
+mongoose.connection.on("disconnected", () => {
+  console.log("MongoDB 연결이 끊어졌습니다. 재연결을 시도합니다.");
+  mongoose.connect(process.env.MONGO_URL, mongooseOptions);
+});
 
 // 기본 미들웨어 설정
 app.use(
@@ -27,12 +40,22 @@ app.use(
       process.env.CORS_ORIGIN,
       "http://3.38.183.123:8000",
       "http://ec2-3-38-183-123.ap-northeast-2.compute.amazonaws.com",
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+    exposedHeaders: ["Set-Cookie"],
   })
 );
+
+// 추가 헤더 설정
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Credentials", "true");
+  next();
+});
+
 app.use(express.json());
 app.use(cookieParser());
 

@@ -46,11 +46,15 @@ const authController = {
           res.cookie("token", token, cookieOptions).json({
             id: userDoc._id,
             username,
+            token, // 토큰도 함께 반환
           });
 
           // 개발 환경에서의 디버깅을 위한 로그
-          console.log("Setting cookie with options:", cookieOptions);
-          console.log("Token being set:", token);
+          console.log(
+            "Login successful - Cookie set with options:",
+            cookieOptions
+          );
+          console.log("Token:", token);
         });
       } else {
         res.status(400).json({ message: "비밀번호가 틀렸습니다" });
@@ -62,11 +66,15 @@ const authController = {
   },
 
   async profile(req, res) {
-    const { token } = req.cookies;
+    // const { token } = req.cookies;
 
-    // 디버깅을 위한 로그 추가
-    console.log("Received cookies:", req.cookies);
-    console.log("Received token:", token);
+    const cookieToken = req.cookies.token;
+    const headerToken = req.headers.authorization?.split(" ")[1];
+    const token = cookieToken || headerToken;
+
+    console.log("Profile request - Cookies:", req.cookies);
+    console.log("Profile request - Headers:", req.headers);
+    console.log("Token being verified:", token);
 
     if (!token) {
       return res.status(401).json("로그인이 필요합니다");

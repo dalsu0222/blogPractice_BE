@@ -34,19 +34,22 @@ const authController = {
     if (passOk) {
       jwt.sign({ username, id: userDoc._id }, secret, {}, (err, token) => {
         if (err) throw err;
-        res
-          .cookie("token", token, {
-            httpOnly: true,
-            secure: true, // 프로덕션 환경에서는 true로 설정
-            sameSite: "none", // 크로스 사이트 요청을 허용
-            path: "/",
-            // EC2 도메인으로 접근하는 경우의 도메인 설정
-            domain: "3.38.183.123", // EC2 IP 주소 또는 도메인 주소
-          })
-          .json({
-            id: userDoc._id,
-            username,
-          });
+
+        const cookieOptions = {
+          httpOnly: true,
+          secure: true,
+          sameSite: "none",
+          path: "/",
+          maxAge: 24 * 60 * 60 * 1000, // 24시간
+        };
+        res.cookie("token", token, cookieOptions).json({
+          id: userDoc._id,
+          username,
+        });
+
+        // 개발 환경에서의 디버깅을 위한 로그
+        console.log("Setting cookie with options:", cookieOptions);
+        console.log("Token being set:", token);
       });
     } else {
       res.status(400).json({ message: "비밀번호가 틀렸습니다" });
@@ -55,6 +58,11 @@ const authController = {
 
   async profile(req, res) {
     const { token } = req.cookies;
+
+    // 디버깅을 위한 로그 추가
+    console.log("Received cookies:", req.cookies);
+    console.log("Received token:", token);
+
     if (!token) {
       return res.status(401).json("로그인이 필요합니다");
     }
@@ -64,7 +72,8 @@ const authController = {
         res.json(info);
       });
     } catch (err) {
-      return res.json("로그인이 필요합니다");
+      console.error("Profile error:", err);
+      return res.status(401).json("로그인이 필요합니다");
     }
   },
 

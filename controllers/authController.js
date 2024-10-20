@@ -37,8 +37,8 @@ const authController = {
         res
           .cookie("token", token, {
             httpOnly: true,
-            secure: false, // HTTPS를 사용하는 경우 true, / HTTP 환경이므로 false로 설정
-            sameSite: "lax", // HTTP 환경에서는 'none' 대신 'lax' 사용
+            secure: true, // 프로덕션 환경에서는 true로 설정
+            sameSite: "none", // 크로스 사이트 요청을 허용
             path: "/",
             // EC2 도메인으로 접근하는 경우의 도메인 설정
             domain: "3.38.183.123", // EC2 IP 주소 또는 도메인 주소
@@ -69,7 +69,15 @@ const authController = {
   },
 
   logout(req, res) {
-    res.cookie("token", "").json("로그아웃 되었습니다.");
+    res
+      .cookie("token", "", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+        path: "/",
+        expires: new Date(0),
+      })
+      .json("로그아웃 되었습니다.");
   },
 };
 

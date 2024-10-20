@@ -29,6 +29,8 @@ app.use(
       "http://ec2-3-38-183-123.ap-northeast-2.compute.amazonaws.com",
     ],
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 app.use(express.json());
